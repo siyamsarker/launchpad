@@ -39,6 +39,7 @@ TOOL_START=0               # epoch at current tool start
 
 # ── Tool registry ─────────────────────────────────────────────────────────────
 declare -A TOOL_DESC=(
+  [osupdate]="System packages update & full upgrade (apt)"
   [kubectl]="Kubernetes CLI"
   [eksctl]="Amazon EKS CLI"
   [awscli]="AWS CLI v2"
@@ -54,7 +55,7 @@ declare -A TOOL_DESC=(
   [nano]="Terminal Text Editor"
   [duf]="Disk Usage / Free Utility"
 )
-ALL_TOOLS=(kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano duf)
+ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano duf)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 _log()      { echo -e "$*" | tee -a "$LOG_FILE"; }
@@ -231,6 +232,25 @@ _cleanup() {
 # =============================================================================
 # INSTALL FUNCTIONS
 # =============================================================================
+
+install_osupdate() {
+  log_step "OS Update & Upgrade"
+  quietly "Refreshing package lists…" \
+    sudo apt-get update -q
+  quietly "Upgrading installed packages…" \
+    sudo bash -c 'DEBIAN_FRONTEND=noninteractive apt-get upgrade -y -q'
+  quietly "Removing unused packages…" \
+    sudo bash -c 'DEBIAN_FRONTEND=noninteractive apt-get autoremove -y -q && apt-get autoclean -q'
+  log_ok "System is up to date"
+  INSTALLED+=("osupdate")
+}
+
+uninstall_osupdate() {
+  # OS upgrades cannot be reversed — this is intentionally a no-op.
+  log_warn "OS updates are not reversible and will not be undone."
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 install_kubectl() {
   log_step "kubectl"
@@ -726,6 +746,12 @@ run_uninstall() {
   echo ""
 
   for tool in "${ALL_TOOLS[@]}"; do
+    # OS upgrades are not reversible — skip silently in uninstall mode
+    if [[ "$tool" == "osupdate" ]]; then
+      log_dim "osupdate — system upgrades are not reversible, skipping"
+      continue
+    fi
+
     local present=false
     local cmd="$tool"
     [[ "$tool" == "awscli" ]] && cmd="aws"
