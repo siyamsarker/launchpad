@@ -931,7 +931,6 @@ _exec_install() {
 
 run_install() {
   banner
-  check_prerequisites
   select_tools
 
   if (( ${#SELECTED_TOOLS[@]} == 0 )); then
@@ -939,6 +938,21 @@ run_install() {
     exit 0
   fi
 
+  # Resolve which selected tools actually need installation
+  local to_install=()
+  for tool in "${SELECTED_TOOLS[@]}"; do
+    _tool_installed "$tool" || to_install+=("$tool")
+  done
+
+  if (( ${#to_install[@]} == 0 )); then
+    echo ""
+    log_ok "All selected tools are already installed."
+    printf "  ${DIM}Run ${BOLD}launchpad --status${DIM} to view installed versions.${NC}\n\n"
+    exit 0
+  fi
+
+  SELECTED_TOOLS=("${to_install[@]}")
+  check_prerequisites
   _exec_install
 }
 
