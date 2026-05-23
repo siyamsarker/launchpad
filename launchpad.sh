@@ -806,13 +806,40 @@ uninstall_self() {
 # =============================================================================
 
 usage() {
-  echo -e "\n${BOLD}Usage:${NC}  $0 [OPTIONS]\n"
-  printf "  %-22s %s\n" "(no flags)"       "Interactive tool selector + install"
-  printf "  %-22s %s\n" "--uninstall"      "Remove all managed DevOps tools"
-  printf "  %-22s %s\n" "--install-self"   "Install launchpad to /usr/local/bin (run from anywhere)"
-  printf "  %-22s %s\n" "--uninstall-self" "Remove launchpad from /usr/local/bin"
-  printf "  %-22s %s\n" "--help"           "Show this message"
-  echo -e "\n${DIM}  Managed tools: ${ALL_TOOLS[*]}${NC}\n"
+  local name; name=$(basename "$0")
+
+  echo -e "\n${BOLD}Usage:${NC}  ${BOLD}${CYAN}$name${NC} [OPTIONS]\n"
+
+  # ── Options ────────────────────────────────────────────────────────────────
+  echo -e "${BOLD}Options${NC}"
+  printf "  ${CYAN}%-22s${NC}  %s\n" "(no flags)"       "Launch the interactive tool installer"
+  printf "  ${CYAN}%-22s${NC}  %s\n" "--uninstall"      "Remove all managed DevOps tools"
+  printf "  ${CYAN}%-22s${NC}  %s\n" "--install-self"   "Copy launchpad to /usr/local/bin (run from anywhere)"
+  printf "  ${CYAN}%-22s${NC}  %s\n" "--uninstall-self" "Remove launchpad from /usr/local/bin"
+  printf "  ${CYAN}%-22s${NC}  %s\n" "--help"           "Show this message"
+
+  # ── Examples ───────────────────────────────────────────────────────────────
+  echo -e "\n${BOLD}Examples${NC}"
+  printf "  ${DIM}\$${NC} ${BOLD}%-38s${NC} ${DIM}# %s${NC}\n" \
+    "./$name"                 "open the interactive installer"
+  printf "  ${DIM}\$${NC} ${BOLD}%-38s${NC} ${DIM}# %s${NC}\n" \
+    "./$name --install-self"  "make 'launchpad' available system-wide"
+  printf "  ${DIM}\$${NC} ${BOLD}%-38s${NC} ${DIM}# %s${NC}\n" \
+    "launchpad"               "run from anywhere after install-self"
+  printf "  ${DIM}\$${NC} ${BOLD}%-38s${NC} ${DIM}# %s${NC}\n" \
+    "launchpad --uninstall"   "remove all managed tools"
+
+  # ── Managed tools (in columns) ─────────────────────────────────────────────
+  echo -e "\n${BOLD}Managed tools${NC}  ${DIM}(${#ALL_TOOLS[@]})${NC}"
+  local i=0 cols=5
+  for tool in "${ALL_TOOLS[@]}"; do
+    printf "  ${GREEN}%-14s${NC}" "$tool"
+    i=$(( i + 1 ))
+    if [[ $(( i % cols )) -eq 0 ]]; then printf "\n"; fi
+  done
+  if [[ $(( i % cols )) -ne 0 ]]; then printf "\n"; fi
+
+  printf "\n${DIM}  Log → /tmp/launchpad-<YYYYmmdd-HHMMSS>.log${NC}\n\n"
 }
 
 main() {
