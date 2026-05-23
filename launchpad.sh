@@ -219,13 +219,16 @@ check_prerequisites() {
   SUDO_KEEPALIVE_PID=$!
   trap '_cleanup' EXIT INT TERM
 
-  local deps=(curl wget apt-transport-https ca-certificates gnupg lsb-release unzip software-properties-common)
+  # apt-transport-https and lsb-release are built-in / transitional on Ubuntu 22.04+
+  local deps=(curl wget ca-certificates gnupg unzip)
   log_info "Refreshing package index…"
-  sudo apt-get update -qq >>"$LOG_FILE" 2>&1
+  sudo apt-get update -qq >>"$LOG_FILE" 2>&1 \
+    || log_warn "Package index refresh had errors — continuing (see $LOG_FILE)"
 
   for dep in "${deps[@]}"; do
     if ! dpkg -s "$dep" &>/dev/null; then
-      quietly "Installing base dependency: $dep" sudo apt-get install -y -qq "$dep"
+      quietly "Installing $dep…" sudo apt-get install -y -qq "$dep" \
+        || log_warn "Could not install $dep — continuing"
     fi
   done
   log_ok "Prerequisites satisfied"
