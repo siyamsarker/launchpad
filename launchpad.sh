@@ -64,6 +64,12 @@ declare -A TOOL_DESC=(
 )
 ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano duf nmap mtr tcpdump iperf3 dnsutils netcat)
 
+# ── apt helper — suppresses needrestart and debconf prompts ──────────────────
+apt_install() {
+  sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
+    apt-get install -y -qq "$@"
+}
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 _log()      { echo -e "$*" | tee -a "$LOG_FILE"; }
 log_info()  { _log "${CYAN}  ➜${NC}  $*"; }
@@ -227,7 +233,7 @@ check_prerequisites() {
 
   for dep in "${deps[@]}"; do
     if ! dpkg -s "$dep" &>/dev/null; then
-      quietly "Installing $dep…" sudo apt-get install -y -qq "$dep" \
+      quietly "Installing $dep…" apt_install "$dep" \
         || log_warn "Could not install $dep — continuing"
     fi
   done
@@ -464,7 +470,7 @@ install_jq() {
     log_warn "jq already installed — $(jq --version). Skipping."
     SKIPPED+=("jq"); return
   fi
-  quietly "Installing jq…" sudo apt-get install -y -qq jq
+  quietly "Installing jq…" apt_install jq
   log_ok "$(jq --version)"
   INSTALLED+=("jq")
 }
@@ -508,7 +514,7 @@ install_fzf() {
     log_warn "fzf already installed — $(fzf --version). Skipping."
     SKIPPED+=("fzf"); return
   fi
-  quietly "Installing fzf…" sudo apt-get install -y -qq fzf
+  quietly "Installing fzf…" apt_install fzf
   log_ok "fzf $(fzf --version)"
   INSTALLED+=("fzf")
 }
@@ -527,7 +533,7 @@ install_bat() {
     log_warn "bat already installed. Skipping."
     SKIPPED+=("bat"); return
   fi
-  quietly "Installing bat…" sudo apt-get install -y -qq bat
+  quietly "Installing bat…" apt_install bat
   if ! command -v bat &>/dev/null && command -v batcat &>/dev/null; then
     sudo ln -sf "$(command -v batcat)" /usr/local/bin/bat
     log_dim "Symlinked batcat → /usr/local/bin/bat"
@@ -575,7 +581,7 @@ install_nano() {
     log_warn "nano already installed — $(nano --version | head -1). Skipping."
     SKIPPED+=("nano"); return
   fi
-  quietly "Installing nano…" sudo apt-get install -y -qq nano
+  quietly "Installing nano…" apt_install nano
   log_ok "$(nano --version | head -1)"
   INSTALLED+=("nano")
 }
@@ -625,8 +631,7 @@ install_nmap() {
     log_warn "nmap already installed. Skipping."
     SKIPPED+=("nmap"); return
   fi
-  quietly "Updating package lists…" sudo apt-get update -q
-  quietly "Installing nmap…" sudo apt-get install -y -qq nmap
+  quietly "Installing nmap…" apt_install nmap
   log_ok "$(nmap --version 2>/dev/null | head -1)"
   INSTALLED+=("nmap")
 }
@@ -643,7 +648,7 @@ install_mtr() {
     log_warn "mtr already installed. Skipping."
     SKIPPED+=("mtr"); return
   fi
-  quietly "Installing mtr…" sudo apt-get install -y -qq mtr-tiny
+  quietly "Installing mtr…" apt_install mtr-tiny
   log_ok "$(mtr --version 2>/dev/null | head -1)"
   INSTALLED+=("mtr")
 }
@@ -660,7 +665,7 @@ install_tcpdump() {
     log_warn "tcpdump already installed. Skipping."
     SKIPPED+=("tcpdump"); return
   fi
-  quietly "Installing tcpdump…" sudo apt-get install -y -qq tcpdump
+  quietly "Installing tcpdump…" apt_install tcpdump
   log_ok "$(tcpdump --version 2>&1 | head -1)"
   INSTALLED+=("tcpdump")
 }
@@ -677,7 +682,7 @@ install_iperf3() {
     log_warn "iperf3 already installed. Skipping."
     SKIPPED+=("iperf3"); return
   fi
-  quietly "Installing iperf3…" sudo apt-get install -y -qq iperf3
+  quietly "Installing iperf3…" apt_install iperf3
   log_ok "$(iperf3 --version 2>/dev/null | head -1)"
   INSTALLED+=("iperf3")
 }
@@ -694,7 +699,7 @@ install_dnsutils() {
     log_warn "dnsutils already installed. Skipping."
     SKIPPED+=("dnsutils"); return
   fi
-  quietly "Installing dnsutils…" sudo apt-get install -y -qq dnsutils
+  quietly "Installing dnsutils…" apt_install dnsutils
   log_ok "$(dig -v 2>&1 | head -1)"
   INSTALLED+=("dnsutils")
 }
@@ -711,7 +716,7 @@ install_netcat() {
     log_warn "netcat already installed. Skipping."
     SKIPPED+=("netcat"); return
   fi
-  quietly "Installing netcat-openbsd…" sudo apt-get install -y -qq netcat-openbsd
+  quietly "Installing netcat-openbsd…" apt_install netcat-openbsd
   log_ok "netcat (openbsd) installed"
   INSTALLED+=("netcat")
 }
