@@ -691,6 +691,71 @@ print_summary() {
 }
 
 # =============================================================================
+# STATUS CHECK
+# =============================================================================
+
+# Returns 0 if the tool binary/package is present on the system.
+_tool_installed() {
+  case "$1" in
+    osupdate) return 0 ;;  # the OS itself is always present
+    awscli)   command -v aws &>/dev/null || [[ -f /usr/local/bin/aws ]] ;;
+    bat)      command -v bat &>/dev/null || command -v batcat &>/dev/null ;;
+    *)        command -v "$1" &>/dev/null ;;
+  esac
+}
+
+# Prints a short version string for an installed tool.
+_tool_version() {
+  case "$1" in
+    osupdate)  lsb_release -ds 2>/dev/null || uname -sr ;;
+    kubectl)   kubectl version --client 2>/dev/null | grep -o 'v[0-9][0-9.]*' | head -1 ;;
+    eksctl)    eksctl version 2>/dev/null ;;
+    awscli)    aws --version 2>&1 | awk '{print $1}' ;;
+    terraform) terraform version 2>/dev/null | head -1 ;;
+    helm)      helm version --short 2>/dev/null ;;
+    docker)    docker --version 2>/dev/null | awk '{print $3}' | tr -d ',' ;;
+    k9s)       k9s version --short 2>/dev/null | grep -o 'v[0-9][0-9.]*' ;;
+    jq)        jq --version 2>/dev/null ;;
+    yq)        yq --version 2>/dev/null | awk '{print $NF}' ;;
+    fzf)       fzf --version 2>/dev/null | awk '{print $1}' ;;
+    bat)       { bat --version 2>/dev/null || batcat --version 2>/dev/null; } | awk '{print $2}' ;;
+    ansible)   ansible --version 2>/dev/null | head -1 ;;
+    nano)      nano --version 2>/dev/null | head -1 | awk '{print $NF}' ;;
+    duf)       duf --version 2>/dev/null ;;
+  esac
+}
+
+run_status() {
+  local hbar="${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  local installed=0 missing=0
+
+  echo ""
+  echo -e "$hbar"
+  printf "${BOLD}  Tool Status${NC}  ${DIM}%d managed tools  •  %s${NC}\n" \
+    "${#ALL_TOOLS[@]}" "$(date '+%Y-%m-%d %H:%M')"
+  echo -e "$hbar"
+  echo ""
+
+  for tool in "${ALL_TOOLS[@]}"; do
+    if _tool_installed "$tool"; then
+      local ver; ver=$(_tool_version "$tool" 2>/dev/null | head -1 | xargs)
+      printf "  ${GREEN}✔${NC}  ${BOLD}%-14s${NC}  ${DIM}%s${NC}\n" "$tool" "${ver:-installed}"
+      installed=$(( installed + 1 ))
+    else
+      printf "  ${RED}✖${NC}  ${BOLD}%-14s${NC}  ${DIM}not installed${NC}  ${YELLOW}→  run: launchpad${NC}\n" "$tool"
+      missing=$(( missing + 1 ))
+    fi
+  done
+
+  echo ""
+  echo -e "$hbar"
+  printf "  ${GREEN}✔  Installed: %d${NC}   ${RED}✖  Missing: %d${NC}   ${DIM}Total: %d${NC}\n" \
+    "$installed" "$missing" "${#ALL_TOOLS[@]}"
+  echo -e "$hbar"
+  echo ""
+}
+
+# =============================================================================
 # MODES
 # =============================================================================
 
@@ -813,6 +878,7 @@ usage() {
   # ── Options ────────────────────────────────────────────────────────────────
   echo -e "${BOLD}Options${NC}"
   printf "  ${CYAN}%-22s${NC}  %s\n" "(no flags)"       "Launch the interactive tool installer"
+  printf "  ${CYAN}%-22s${NC}  %s\n" "--status"         "Show installed / missing status of all tools"
   printf "  ${CYAN}%-22s${NC}  %s\n" "--uninstall"      "Remove all managed DevOps tools"
   printf "  ${CYAN}%-22s${NC}  %s\n" "--install-self"   "Copy launchpad to /usr/local/bin (run from anywhere)"
   printf "  ${CYAN}%-22s${NC}  %s\n" "--uninstall-self" "Remove launchpad from /usr/local/bin"
@@ -824,6 +890,8 @@ usage() {
     "./$name"                 "open the interactive installer"
   printf "  ${DIM}\$${NC} ${BOLD}%-38s${NC} ${DIM}# %s${NC}\n" \
     "./$name --install-self"  "make 'launchpad' available system-wide"
+  printf "  ${DIM}\$${NC} ${BOLD}%-38s${NC} ${DIM}# %s${NC}\n" \
+    "launchpad --status"      "check which tools are installed"
   printf "  ${DIM}\$${NC} ${BOLD}%-38s${NC} ${DIM}# %s${NC}\n" \
     "launchpad"               "run from anywhere after install-self"
   printf "  ${DIM}\$${NC} ${BOLD}%-38s${NC} ${DIM}# %s${NC}\n" \
@@ -844,6 +912,7 @@ usage() {
 
 main() {
   case "${1:-}" in
+    --status|-s)      run_status     ;;
     --uninstall|-u)   run_uninstall  ;;
     --install-self)   install_self   ;;
     --uninstall-self) uninstall_self ;;
