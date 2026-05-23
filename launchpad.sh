@@ -884,7 +884,9 @@ run_status() {
       for tool in "${ALL_TOOLS[@]}"; do
         _tool_installed "$tool" || SELECTED_TOOLS+=("$tool")
       done
-      run_install
+      echo ""
+      check_prerequisites
+      _exec_install
     fi
   fi
 }
@@ -893,18 +895,7 @@ run_status() {
 # MODES
 # =============================================================================
 
-run_install() {
-  banner
-  check_prerequisites
-  if (( ${#SELECTED_TOOLS[@]} == 0 )); then
-    select_tools
-  fi
-
-  if (( ${#SELECTED_TOOLS[@]} == 0 )); then
-    log_warn "No tools selected. Exiting."
-    exit 0
-  fi
-
+_exec_install() {
   INSTALL_TOTAL=${#SELECTED_TOOLS[@]}
   INSTALL_CURRENT=0
   INSTALL_START=$(date +%s)
@@ -936,6 +927,19 @@ run_install() {
   done
 
   print_summary
+}
+
+run_install() {
+  banner
+  check_prerequisites
+  select_tools
+
+  if (( ${#SELECTED_TOOLS[@]} == 0 )); then
+    log_warn "No tools selected. Exiting."
+    exit 0
+  fi
+
+  _exec_install
 }
 
 run_uninstall() {
