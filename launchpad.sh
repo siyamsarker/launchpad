@@ -56,10 +56,10 @@ declare -A TOOL_DESC=(
   [duf]="Disk Usage / Free Utility"
   # Network tools
   [nmap]="Network Scanner & Port Discovery"
-  [mtr]="Network Diagnostic — ping + traceroute combined"
+  [mtr]="Network diagnostic (ping + traceroute)"
   [tcpdump]="Packet Capture & Traffic Analysis"
   [iperf3]="Network Bandwidth & Performance Testing"
-  [dnsutils]="DNS Tools — dig, nslookup, host"
+  [dnsutils]="DNS tools: dig, nslookup, host"
   [netcat]="TCP/UDP Swiss Army Knife (nc)"
 )
 ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano duf nmap mtr tcpdump iperf3 dnsutils netcat)
@@ -743,15 +743,25 @@ _select_whiptail() {
   local n=${#ALL_TOOLS[@]}
   local term_h; term_h=$(tput lines 2>/dev/null || echo 40)
   local term_w; term_w=$(tput cols  2>/dev/null || echo 80)
+
+  # Width = widest "[*] TAG   DESCRIPTION" line + dialog chrome (6)
+  local max_item=0
+  for tool in "${ALL_TOOLS[@]}"; do
+    local w=$(( 4 + ${#tool} + 3 + ${#TOOL_DESC[$tool]} ))
+    (( w > max_item )) && max_item=$w
+  done
+  local dlg_w=$(( max_item + 6 ))
+  (( dlg_w < 60 ))          && dlg_w=60
+  (( dlg_w > term_w - 4 ))  && dlg_w=$(( term_w - 4 ))
+
   local dlg_h=$(( n + 9 ))
-  local dlg_w=$(( term_w < 78 ? term_w - 2 : 78 ))
   (( dlg_h > term_h - 2 )) && dlg_h=$(( term_h - 2 ))
   local list_h=$(( dlg_h - 9 ))
   (( list_h < 5 )) && list_h=5
 
   local raw
   raw=$(whiptail --title " Launchpad — DevOps Workspace Installer " \
-    --checklist "\nSPACE = toggle  •  ENTER = confirm  •  TAB = switch buttons\n" \
+    --checklist "\nSPACE = toggle  |  ENTER = confirm  |  TAB = switch buttons\n" \
     "$dlg_h" "$dlg_w" "$list_h" "${items[@]}" \
     3>&1 1>&2 2>&3) || { echo -e "\n${YELLOW}  Cancelled.${NC}"; exit 0; }
   IFS=' ' read -r -a SELECTED_TOOLS <<< "${raw//\"/}"
