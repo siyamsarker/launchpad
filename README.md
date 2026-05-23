@@ -131,7 +131,7 @@ launchpad --help            # show all flags
 | Flag | Alias | Description |
 |---|---|---|
 | *(none)* | | Interactive mode — select tools and install |
-| `--status` | `-s` | Show installed / missing status of all tools |
+| `--status` | `-s` | Show installed / missing status of all tools — prompts to install any missing ones |
 | `--uninstall` | `-u` | Remove all managed tools |
 | `--install-self` | | Copy `launchpad` to `/usr/local/bin` |
 | `--uninstall-self` | | Remove `launchpad` from `/usr/local/bin` |
@@ -182,9 +182,15 @@ launchpad --help            # show all flags
   ✔  kubectl          v1.30.2
   ✔  docker           26.1.3
   ✖  nmap             not installed  →  run: launchpad
+  ✖  iperf3           not installed  →  run: launchpad
 
-  ✔  Installed: 14   ✖  Missing: 7   Total: 21
+  ✔  Installed: 19   ✖  Missing: 2   Total: 21
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Install 2 missing tool(s) now?  [y/N]
 ```
+
+Answering `y` installs only the missing tools immediately — no checklist required.
 
 ---
 
