@@ -837,7 +837,7 @@ _tool_version() {
     bat)       { bat --version 2>/dev/null || batcat --version 2>/dev/null; } | awk '{print $2}' ;;
     ansible)   ansible --version 2>/dev/null | head -1 ;;
     nano)      nano --version 2>/dev/null | head -1 | awk '{print $NF}' ;;
-    duf)       duf --version 2>/dev/null ;;
+    duf)       duf --version 2>/dev/null | awk '{print $2}' ;;
     nmap)      nmap --version 2>/dev/null | head -1 | awk '{print $3}' ;;
     mtr)       mtr --version 2>/dev/null | awk '{print $2}' ;;
     tcpdump)   tcpdump --version 2>&1 | head -1 | awk '{print $3}' ;;
@@ -875,6 +875,18 @@ run_status() {
     "$installed" "$missing" "${#ALL_TOOLS[@]}"
   echo -e "$hbar"
   echo ""
+
+  if (( missing > 0 )); then
+    printf "  ${YELLOW}Install %d missing tool(s) now?${NC}  ${DIM}[y/N]${NC}  " "$missing"
+    read -r _status_ans
+    if [[ "${_status_ans,,}" == "y" ]]; then
+      SELECTED_TOOLS=()
+      for tool in "${ALL_TOOLS[@]}"; do
+        _tool_installed "$tool" || SELECTED_TOOLS+=("$tool")
+      done
+      run_install
+    fi
+  fi
 }
 
 # =============================================================================
@@ -884,7 +896,9 @@ run_status() {
 run_install() {
   banner
   check_prerequisites
-  select_tools
+  if (( ${#SELECTED_TOOLS[@]} == 0 )); then
+    select_tools
+  fi
 
   if (( ${#SELECTED_TOOLS[@]} == 0 )); then
     log_warn "No tools selected. Exiting."
