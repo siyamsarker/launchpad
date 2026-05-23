@@ -28,6 +28,28 @@ A checklist menu opens. Toggle tools with `SPACE`, confirm with `ENTER`.
 
 ---
 
+## Install via curl
+
+No git required. Download the script directly and run it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/siyamsarker/launchpad/main/launchpad.sh -o launchpad.sh
+chmod +x launchpad.sh
+./launchpad.sh
+```
+
+To also make it available system-wide in one go:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/siyamsarker/launchpad/main/launchpad.sh -o launchpad.sh
+chmod +x launchpad.sh
+./launchpad.sh --install-self
+```
+
+After `--install-self` completes, the downloaded file can be removed — `launchpad` is now in `/usr/local/bin`.
+
+---
+
 ## Global Install
 
 Copy Launchpad to `/usr/local/bin` so you can call it from any directory:
