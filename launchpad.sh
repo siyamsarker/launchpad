@@ -2,7 +2,7 @@
 # =============================================================================
 # Launchpad — DevOps Workspace Installer
 # Compatible : Ubuntu 20.04 / 22.04 / 24.04 (amd64 & arm64)
-# Usage      : ./setup.sh [--uninstall | --help]
+# Usage      : ./launchpad.sh [--uninstall | --install-self | --help]
 #
 # Tools managed:
 #   kubectl · eksctl · awscli · terraform · helm · docker
@@ -23,7 +23,7 @@ DIM='\033[2m'
 NC='\033[0m'
 
 # ── Global state ─────────────────────────────────────────────────────────────
-LOG_FILE="/tmp/devops-setup-$(date +%Y%m%d-%H%M%S).log"
+LOG_FILE="/tmp/launchpad-$(date +%Y%m%d-%H%M%S).log"
 declare -a INSTALLED=()
 declare -a FAILED=()
 declare -a SKIPPED=()
@@ -744,22 +744,58 @@ run_uninstall() {
 }
 
 # =============================================================================
+# SELF INSTALL / UNINSTALL
+# =============================================================================
+
+# Copy this script to /usr/local/bin/launchpad so it is available system-wide.
+install_self() {
+  local target="/usr/local/bin/launchpad"
+  local src; src=$(realpath "$0")
+
+  if [[ "$src" == "$target" ]]; then
+    log_warn "Already running from $target — nothing to do."
+    return
+  fi
+
+  log_info "Copying to $target…"
+  sudo cp "$src" "$target"
+  sudo chmod +x "$target"
+  log_ok "Installed! Run ${BOLD}launchpad${NC} from anywhere."
+  log_dim "To remove: launchpad --uninstall-self"
+}
+
+# Remove the script from /usr/local/bin.
+uninstall_self() {
+  local target="/usr/local/bin/launchpad"
+  if [[ -f "$target" ]]; then
+    sudo rm -f "$target"
+    log_ok "Removed $target — 'launchpad' command is no longer in PATH."
+  else
+    log_warn "'launchpad' not found at $target — nothing to remove."
+  fi
+}
+
+# =============================================================================
 # USAGE / ENTRY POINT
 # =============================================================================
 
 usage() {
   echo -e "\n${BOLD}Usage:${NC}  $0 [OPTIONS]\n"
-  printf "  %-18s %s\n" "(no flags)"  "Interactive tool selector + install"
-  printf "  %-18s %s\n" "--uninstall" "Remove all managed tools"
-  printf "  %-18s %s\n" "--help"      "Show this message"
+  printf "  %-22s %s\n" "(no flags)"       "Interactive tool selector + install"
+  printf "  %-22s %s\n" "--uninstall"      "Remove all managed DevOps tools"
+  printf "  %-22s %s\n" "--install-self"   "Install launchpad to /usr/local/bin (run from anywhere)"
+  printf "  %-22s %s\n" "--uninstall-self" "Remove launchpad from /usr/local/bin"
+  printf "  %-22s %s\n" "--help"           "Show this message"
   echo -e "\n${DIM}  Managed tools: ${ALL_TOOLS[*]}${NC}\n"
 }
 
 main() {
   case "${1:-}" in
-    --uninstall|-u) run_uninstall ;;
-    --help|-h)      usage ;;
-    "")             run_install  ;;
+    --uninstall|-u)   run_uninstall  ;;
+    --install-self)   install_self   ;;
+    --uninstall-self) uninstall_self ;;
+    --help|-h)        usage          ;;
+    "")               run_install    ;;
     *) log_error "Unknown option: $1"; usage; exit 1 ;;
   esac
 }
