@@ -1,6 +1,6 @@
 # Launchpad
 
-A single interactive Bash script that installs and configures a complete DevOps toolchain on Ubuntu in one shot — with a live progress bar, per-operation timers, and a full `--uninstall` mode that reverses everything.
+An interactive Bash script that installs and configures a complete DevOps + networking toolchain on Ubuntu in one shot — with a live progress bar, per-operation timers, idempotent installs, and a full `--uninstall` mode that reverses everything.
 
 ---
 
@@ -9,7 +9,7 @@ A single interactive Bash script that installs and configures a complete DevOps 
 | Requirement | Detail |
 |---|---|
 | **OS** | Ubuntu 20.04 / 22.04 / 24.04 |
-| **Architecture** | `amd64` (x86\_64) or `arm64` (aarch64) |
+| **Architecture** | `amd64` (x86_64) or `arm64` (aarch64) |
 | **Privileges** | `sudo` access (no need to run as root) |
 | **Internet** | Required — tools are fetched from official sources |
 
@@ -30,13 +30,13 @@ A checklist menu opens. Toggle tools with `SPACE`, confirm with `ENTER`.
 
 ## Global Install
 
-Install Launchpad to `/usr/local/bin` so you can call it from anywhere:
+Copy Launchpad to `/usr/local/bin` so you can call it from any directory:
 
 ```bash
 ./launchpad.sh --install-self
 ```
 
-After that, run it from any directory:
+After that:
 
 ```bash
 launchpad             # open the interactive installer
@@ -53,8 +53,11 @@ launchpad --uninstall-self
 
 ## Managed Tools
 
-| Tool | What it does | Source |
+### DevOps & Infrastructure
+
+| Tool | What it does | Install source |
 |---|---|---|
+| `osupdate` | System packages update & full upgrade | apt |
 | `kubectl` | Kubernetes CLI | Kubernetes apt repo |
 | `eksctl` | Amazon EKS cluster CLI | GitHub binary |
 | `awscli` | AWS CLI v2 | Amazon official installer |
@@ -62,13 +65,29 @@ launchpad --uninstall-self
 | `helm` | Kubernetes package manager | Official get-helm-3 script |
 | `docker` | Container runtime + Compose v2 | get.docker.com script |
 | `k9s` | Terminal dashboard for Kubernetes | GitHub binary |
+| `ansible` | Configuration management | Ansible PPA |
+
+### Utilities
+
+| Tool | What it does | Install source |
+|---|---|---|
 | `jq` | JSON processor | Ubuntu apt |
 | `yq` | YAML processor | GitHub binary |
 | `fzf` | Fuzzy finder | Ubuntu apt |
-| `bat` | Syntax-highlighted `cat` | Ubuntu apt |
-| `ansible` | Configuration management | Ansible PPA |
+| `bat` | Syntax-highlighted `cat` replacement | Ubuntu apt |
 | `nano` | Terminal text editor | Ubuntu apt |
 | `duf` | Disk usage / free utility | GitHub `.deb` |
+
+### Network & Troubleshooting
+
+| Tool | What it does | Install source |
+|---|---|---|
+| `nmap` | Network scanner & port discovery | Ubuntu apt |
+| `mtr` | Network diagnostic — ping + traceroute combined | Ubuntu apt |
+| `tcpdump` | Packet capture & traffic analysis | Ubuntu apt |
+| `iperf3` | Network bandwidth & performance testing | Ubuntu apt |
+| `dnsutils` | DNS tools — `dig`, `nslookup`, `host` | Ubuntu apt |
+| `netcat` | TCP/UDP swiss army knife (`nc`) | Ubuntu apt |
 
 All tools are fetched from their official, vendor-provided sources. No third-party mirrors.
 
@@ -78,8 +97,9 @@ All tools are fetched from their official, vendor-provided sources. No third-par
 
 ```bash
 launchpad                   # interactive install (tool checklist)
-launchpad --uninstall       # remove all managed DevOps tools
-launchpad --install-self    # install launchpad to /usr/local/bin
+launchpad --status          # show installed / missing status for all tools
+launchpad --uninstall       # remove all managed tools
+launchpad --install-self    # copy launchpad to /usr/local/bin
 launchpad --uninstall-self  # remove launchpad from /usr/local/bin
 launchpad --help            # show all flags
 ```
@@ -89,6 +109,7 @@ launchpad --help            # show all flags
 | Flag | Alias | Description |
 |---|---|---|
 | *(none)* | | Interactive mode — select tools and install |
+| `--status` | `-s` | Show installed / missing status of all tools |
 | `--uninstall` | `-u` | Remove all managed tools |
 | `--install-self` | | Copy `launchpad` to `/usr/local/bin` |
 | `--uninstall-self` | | Remove `launchpad` from `/usr/local/bin` |
@@ -130,6 +151,19 @@ launchpad --help            # show all flags
     ✔  k9s              7s
 ```
 
+**Tool status check** — `launchpad --status`:
+```
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Tool Status  21 managed tools  •  2026-05-23 14:00
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✔  kubectl          v1.30.2
+  ✔  docker           26.1.3
+  ✖  nmap             not installed  →  run: launchpad
+
+  ✔  Installed: 14   ✖  Missing: 7   Total: 21
+```
+
 ---
 
 ## Logs
@@ -140,7 +174,7 @@ Every run writes a timestamped log to `/tmp/`:
 /tmp/launchpad-20260523-141500.log
 ```
 
-If any tool fails, the log path is printed in both the inline error and the final summary.
+If any tool fails, the log path is printed in the inline error and in the final summary.
 
 ---
 
@@ -158,6 +192,7 @@ launchpad --uninstall
 
 - Prompts for `YES` confirmation before removing anything.
 - Docker has an additional confirmation prompt because removing it also wipes `/var/lib/docker` (all images, containers, and volumes).
+- `osupdate` is intentionally skipped during uninstall — OS upgrades are not reversible.
 - Each tool is only removed if it is detected on the system — never fails on tools that were never installed.
 
 ---
@@ -196,7 +231,9 @@ TOOL_DESC=(
 )
 ```
 
-The progress tracking, timing, and interactive selector pick it up automatically.
+If the installed binary name differs from the tool id (e.g. `dnsutils` → `dig`), add a case to `_tool_installed()` and `_tool_version()` in the STATUS CHECK section.
+
+The progress tracking, timing, and interactive selector pick everything up automatically.
 
 ---
 
@@ -205,3 +242,4 @@ The progress tracking, timing, and interactive selector pick it up automatically
 - **Docker group**: after Docker is installed, the script adds your user to the `docker` group. You must **log out and back in** for this to take effect.
 - **sudo keepalive**: a background process refreshes your `sudo` ticket every 55 seconds so it never expires mid-install on long runs.
 - **Arch detection**: all binary downloads automatically select `amd64` or `arm64` based on `uname -m`.
+- **osupdate**: always runs as the first step when selected. The uninstall mode skips it intentionally — OS upgrades cannot be rolled back.
