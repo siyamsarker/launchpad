@@ -30,6 +30,13 @@ declare -a SKIPPED=()
 declare -a SELECTED_TOOLS=()
 SUDO_KEEPALIVE_PID=""
 
+# ── Progress tracking ─────────────────────────────────────────────────────────
+declare -A TOOL_TIMES=()   # tool → seconds taken
+INSTALL_TOTAL=0            # set in run_install before the loop
+INSTALL_CURRENT=0          # incremented by _tool_header
+INSTALL_START=0            # epoch at first tool start
+TOOL_START=0               # epoch at current tool start
+
 # ── Tool registry ─────────────────────────────────────────────────────────────
 declare -A TOOL_DESC=(
   [kubectl]="Kubernetes CLI"
@@ -55,17 +62,20 @@ log_info()  { _log "${CYAN}  ➜${NC}  $*"; }
 log_ok()    { _log "${GREEN}  ✔${NC}  $*"; }
 log_warn()  { _log "${YELLOW}  ⚠${NC}  $*"; }
 log_error() { _log "${RED}  ✖${NC}  $*"; }
-log_step()  { _log "\n${BOLD}${BLUE}▶ $*${NC}"; }
+log_step()  { (( INSTALL_TOTAL > 0 )) && return; _log "\n${BOLD}${BLUE}▶ $*${NC}"; }
 log_dim()   { _log "${DIM}    $*${NC}"; }
 
 # ── Spinner ───────────────────────────────────────────────────────────────────
 _spin() {
   local pid=$1 msg=$2
   local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-  local i=0
+  local i=0 t0 elapsed
+  t0=$(date +%s)
   tput civis 2>/dev/null || true
   while kill -0 "$pid" 2>/dev/null; do
-    printf "\r  ${CYAN}%s${NC}  %s" "${frames[$((i % 10))]}" "$msg"
+    elapsed=$(( $(date +%s) - t0 ))
+    printf "\r    ${CYAN}%s${NC}  %s  ${DIM}[%ds]${NC}   " \
+      "${frames[$((i % 10))]}" "$msg" "$elapsed"
     i=$(( i + 1 ))
     sleep 0.08
   done
@@ -95,6 +105,71 @@ arch() {
 gh_latest() {
   curl -fsSL "https://api.github.com/repos/$1/releases/latest" \
     | grep '"tag_name"' | cut -d'"' -f4
+}
+
+# ── Progress UI helpers ───────────────────────────────────────────────────────
+
+# Human-readable duration: 0-59s → "42s", ≥60s → "1m 5s"
+_fmt_time() {
+  local s=$1
+  (( s < 60 )) && printf "%ds" "$s" || printf "%dm %ds" "$(( s / 60 ))" "$(( s % 60 ))"
+}
+
+_divider() {
+  printf "${DIM}  %-56s${NC}\n" "──────────────────────────────────────────────────────"
+}
+
+# Print the overall progress bar. Call with (current total).
+_print_progress_bar() {
+  local current=$1 total=$2
+  local width=32 filled pct elapsed eta_str=""
+  filled=$(( current * width / total ))
+  pct=$(( current * 100 / total ))
+  elapsed=$(( $(date +%s) - INSTALL_START ))
+
+  local bar="" i
+  for (( i = 0; i < filled; i++ ));       do bar+="█"; done
+  for (( i = filled; i < width; i++ ));   do bar+="░"; done
+
+  if (( current > 0 && elapsed > 0 )); then
+    local avg=$(( elapsed / current ))
+    local remain=$(( (total - current) * avg ))
+    eta_str="  ${DIM}ETA ~$(_fmt_time "$remain")${NC}"
+  fi
+
+  echo ""
+  _divider
+  printf "  ${BOLD}[%s]${NC}  ${CYAN}%d/%d${NC}  ${DIM}(%d%%)${NC}  Elapsed: ${BOLD}%s${NC}%b\n" \
+    "$bar" "$current" "$total" "$pct" "$(_fmt_time "$elapsed")" "$eta_str"
+  _divider
+  echo ""
+}
+
+# Print the section header for a tool. Increments INSTALL_CURRENT.
+_tool_header() {
+  local tool=$1
+  INSTALL_CURRENT=$(( INSTALL_CURRENT + 1 ))
+  TOOL_START=$(date +%s)
+  echo ""
+  _divider
+  printf "  ${BOLD}${BLUE}[%d/%d]${NC}  ${BOLD}%-12s${NC}  ${DIM}%s${NC}\n" \
+    "$INSTALL_CURRENT" "$INSTALL_TOTAL" "$tool" "${TOOL_DESC[$tool]:-}"
+  _divider
+}
+
+# Print timing + updated progress bar after a tool completes.
+# Usage: _tool_done <toolname> <ok|skip|fail>
+_tool_done() {
+  local tool=$1 status=$2
+  local elapsed=$(( $(date +%s) - TOOL_START ))
+  TOOL_TIMES[$tool]=$elapsed
+
+  case "$status" in
+    ok)   printf "  ${DIM}  ⏱  Completed in %s${NC}\n" "$(_fmt_time "$elapsed")" ;;
+    skip) : ;;
+    fail) printf "  ${DIM}  ⏱  Failed after %s${NC}\n"    "$(_fmt_time "$elapsed")" ;;
+  esac
+  _print_progress_bar "$INSTALL_CURRENT" "$INSTALL_TOTAL"
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -565,21 +640,29 @@ _select_fallback() {
 
 print_summary() {
   local hbar="${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+  local total_elapsed=$(( $(date +%s) - INSTALL_START ))
   echo -e "\n$hbar"
-  echo -e "${BOLD}  Installation Summary${NC}"
+  printf "${BOLD}  Installation Summary${NC}  ${DIM}(total: %s)${NC}\n" \
+    "$(_fmt_time "$total_elapsed")"
   echo -e "$hbar"
 
   if (( ${#INSTALLED[@]} > 0 )); then
     echo -e "\n${GREEN}  Installed (${#INSTALLED[@]}):${NC}"
-    for t in "${INSTALLED[@]}"; do echo -e "    ${GREEN}✔${NC}  $t"; done
+    for t in "${INSTALLED[@]}"; do
+      printf "    ${GREEN}✔${NC}  %-14s  ${DIM}%s${NC}\n" "$t" "$(_fmt_time "${TOOL_TIMES[$t]:-0}")"
+    done
   fi
   if (( ${#SKIPPED[@]} > 0 )); then
     echo -e "\n${YELLOW}  Already present / skipped (${#SKIPPED[@]}):${NC}"
-    for t in "${SKIPPED[@]}"; do echo -e "    ${YELLOW}–${NC}  $t"; done
+    for t in "${SKIPPED[@]}"; do
+      printf "    ${YELLOW}–${NC}  %-14s  ${DIM}already installed${NC}\n" "$t"
+    done
   fi
   if (( ${#FAILED[@]} > 0 )); then
     echo -e "\n${RED}  Failed (${#FAILED[@]}):${NC}"
-    for t in "${FAILED[@]}"; do echo -e "    ${RED}✖${NC}  $t"; done
+    for t in "${FAILED[@]}"; do
+      printf "    ${RED}✖${NC}  %-14s  ${DIM}%s${NC}\n" "$t" "$(_fmt_time "${TOOL_TIMES[$t]:-0}")"
+    done
     echo -e "\n${DIM}  Inspect the log: ${LOG_FILE}${NC}"
   fi
 
@@ -601,18 +684,34 @@ run_install() {
     exit 0
   fi
 
+  INSTALL_TOTAL=${#SELECTED_TOOLS[@]}
+  INSTALL_CURRENT=0
+  INSTALL_START=$(date +%s)
+
   echo ""
-  log_info "Installing ${#SELECTED_TOOLS[@]} tool(s)…"
+  printf "  ${BOLD}Starting installation of %d tool(s)…${NC}\n" "$INSTALL_TOTAL"
+  _print_progress_bar 0 "$INSTALL_TOTAL"
 
   for tool in "${SELECTED_TOOLS[@]}"; do
-    if declare -f "install_${tool}" &>/dev/null; then
-      if ! "install_${tool}" 2>>"$LOG_FILE"; then
-        log_error "  $tool installation failed — see $LOG_FILE"
-        FAILED+=("$tool")
-      fi
-    else
-      log_warn "Unknown tool: '$tool' — skipping"
+    if ! declare -f "install_${tool}" &>/dev/null; then
+      log_warn "Unknown tool: '$tool' — skipping"; continue
     fi
+
+    _tool_header "$tool"
+
+    local result="ok"
+    if ! "install_${tool}" 2>>"$LOG_FILE"; then
+      log_error "  $tool installation failed — see $LOG_FILE"
+      FAILED+=("$tool")
+    fi
+
+    if [[ " ${SKIPPED[*]:-} " =~ " $tool " ]]; then
+      result="skip"
+    elif [[ " ${FAILED[*]:-} " =~ " $tool " ]]; then
+      result="fail"
+    fi
+
+    _tool_done "$tool" "$result"
   done
 
   print_summary
