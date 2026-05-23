@@ -18,7 +18,7 @@ A single interactive Bash script that installs and configures a complete DevOps 
 ## Quick Start
 
 ```bash
-git clone <repo-url> launchpad
+git clone https://github.com/siyamsarker/launchpad.git
 cd launchpad
 chmod +x launchpad.sh
 ./launchpad.sh
