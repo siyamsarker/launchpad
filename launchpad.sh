@@ -54,8 +54,15 @@ declare -A TOOL_DESC=(
   [ansible]="Configuration Management"
   [nano]="Terminal Text Editor"
   [duf]="Disk Usage / Free Utility"
+  # Network tools
+  [nmap]="Network Scanner & Port Discovery"
+  [mtr]="Network Diagnostic — ping + traceroute combined"
+  [tcpdump]="Packet Capture & Traffic Analysis"
+  [iperf3]="Network Bandwidth & Performance Testing"
+  [dnsutils]="DNS Tools — dig, nslookup, host"
+  [netcat]="TCP/UDP Swiss Army Knife (nc)"
 )
-ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano duf)
+ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano duf nmap mtr tcpdump iperf3 dnsutils netcat)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 _log()      { echo -e "$*" | tee -a "$LOG_FILE"; }
@@ -606,6 +613,113 @@ uninstall_duf() {
 }
 
 # =============================================================================
+# NETWORK TOOLS
+# =============================================================================
+
+install_nmap() {
+  log_step "nmap"
+  if command -v nmap &>/dev/null; then
+    log_warn "nmap already installed. Skipping."
+    SKIPPED+=("nmap"); return
+  fi
+  quietly "Updating package lists…" sudo apt-get update -q
+  quietly "Installing nmap…" sudo apt-get install -y -qq nmap
+  log_ok "$(nmap --version 2>/dev/null | head -1)"
+  INSTALLED+=("nmap")
+}
+
+uninstall_nmap() {
+  log_step "Removing nmap"
+  sudo apt-get remove -y -qq nmap >>"$LOG_FILE" 2>&1 || true
+  log_ok "nmap removed"
+}
+
+install_mtr() {
+  log_step "mtr"
+  if command -v mtr &>/dev/null; then
+    log_warn "mtr already installed. Skipping."
+    SKIPPED+=("mtr"); return
+  fi
+  quietly "Installing mtr…" sudo apt-get install -y -qq mtr-tiny
+  log_ok "$(mtr --version 2>/dev/null | head -1)"
+  INSTALLED+=("mtr")
+}
+
+uninstall_mtr() {
+  log_step "Removing mtr"
+  sudo apt-get remove -y -qq mtr-tiny >>"$LOG_FILE" 2>&1 || true
+  log_ok "mtr removed"
+}
+
+install_tcpdump() {
+  log_step "tcpdump"
+  if command -v tcpdump &>/dev/null; then
+    log_warn "tcpdump already installed. Skipping."
+    SKIPPED+=("tcpdump"); return
+  fi
+  quietly "Installing tcpdump…" sudo apt-get install -y -qq tcpdump
+  log_ok "$(tcpdump --version 2>&1 | head -1)"
+  INSTALLED+=("tcpdump")
+}
+
+uninstall_tcpdump() {
+  log_step "Removing tcpdump"
+  sudo apt-get remove -y -qq tcpdump >>"$LOG_FILE" 2>&1 || true
+  log_ok "tcpdump removed"
+}
+
+install_iperf3() {
+  log_step "iperf3"
+  if command -v iperf3 &>/dev/null; then
+    log_warn "iperf3 already installed. Skipping."
+    SKIPPED+=("iperf3"); return
+  fi
+  quietly "Installing iperf3…" sudo apt-get install -y -qq iperf3
+  log_ok "$(iperf3 --version 2>/dev/null | head -1)"
+  INSTALLED+=("iperf3")
+}
+
+uninstall_iperf3() {
+  log_step "Removing iperf3"
+  sudo apt-get remove -y -qq iperf3 >>"$LOG_FILE" 2>&1 || true
+  log_ok "iperf3 removed"
+}
+
+install_dnsutils() {
+  log_step "dnsutils"
+  if command -v dig &>/dev/null; then
+    log_warn "dnsutils already installed. Skipping."
+    SKIPPED+=("dnsutils"); return
+  fi
+  quietly "Installing dnsutils…" sudo apt-get install -y -qq dnsutils
+  log_ok "$(dig -v 2>&1 | head -1)"
+  INSTALLED+=("dnsutils")
+}
+
+uninstall_dnsutils() {
+  log_step "Removing dnsutils"
+  sudo apt-get remove -y -qq dnsutils >>"$LOG_FILE" 2>&1 || true
+  log_ok "dnsutils removed"
+}
+
+install_netcat() {
+  log_step "netcat"
+  if command -v nc &>/dev/null; then
+    log_warn "netcat already installed. Skipping."
+    SKIPPED+=("netcat"); return
+  fi
+  quietly "Installing netcat-openbsd…" sudo apt-get install -y -qq netcat-openbsd
+  log_ok "netcat (openbsd) installed"
+  INSTALLED+=("netcat")
+}
+
+uninstall_netcat() {
+  log_step "Removing netcat"
+  sudo apt-get remove -y -qq netcat-openbsd >>"$LOG_FILE" 2>&1 || true
+  log_ok "netcat removed"
+}
+
+# =============================================================================
 # INTERACTIVE TOOL SELECTOR
 # =============================================================================
 
@@ -700,6 +814,8 @@ _tool_installed() {
     osupdate) return 0 ;;  # the OS itself is always present
     awscli)   command -v aws &>/dev/null || [[ -f /usr/local/bin/aws ]] ;;
     bat)      command -v bat &>/dev/null || command -v batcat &>/dev/null ;;
+    dnsutils) command -v dig &>/dev/null ;;
+    netcat)   command -v nc &>/dev/null || command -v ncat &>/dev/null ;;
     *)        command -v "$1" &>/dev/null ;;
   esac
 }
@@ -722,6 +838,12 @@ _tool_version() {
     ansible)   ansible --version 2>/dev/null | head -1 ;;
     nano)      nano --version 2>/dev/null | head -1 | awk '{print $NF}' ;;
     duf)       duf --version 2>/dev/null ;;
+    nmap)      nmap --version 2>/dev/null | head -1 | awk '{print $3}' ;;
+    mtr)       mtr --version 2>/dev/null | awk '{print $2}' ;;
+    tcpdump)   tcpdump --version 2>&1 | head -1 | awk '{print $3}' ;;
+    iperf3)    iperf3 --version 2>/dev/null | head -1 | awk '{print $2}' ;;
+    dnsutils)  dig -v 2>&1 | awk '{print $2}' ;;
+    netcat)    dpkg -s netcat-openbsd 2>/dev/null | grep 'Version:' | awk '{print $2}' ;;
   esac
 }
 
