@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# DevOps Workspace Installer
+# Launchpad — DevOps Workspace Installer
 # Compatible : Ubuntu 20.04 / 22.04 / 24.04 (amd64 & arm64)
 # Usage      : ./setup.sh [--uninstall | --help]
 #
@@ -178,16 +178,16 @@ banner() {
   printf "${BOLD}${BLUE}"
   cat <<'BANNER'
 
-  ██████╗ ███████╗██╗   ██╗ ██████╗ ██████╗ ███████╗
-  ██╔══██╗██╔════╝██║   ██║██╔═══██╗██╔══██╗██╔════╝
-  ██║  ██║█████╗  ██║   ██║██║   ██║██████╔╝███████╗
-  ██║  ██║██╔══╝  ╚██╗ ██╔╝██║   ██║██╔═══╝ ╚════██║
-  ██████╔╝███████╗ ╚████╔╝ ╚██████╔╝██║     ███████║
-  ╚═════╝ ╚══════╝  ╚═══╝   ╚═════╝ ╚═╝     ╚══════╝
+  ██╗      █████╗ ██╗   ██╗███╗   ██╗ ██████╗██╗  ██╗██████╗  █████╗ ██████╗
+  ██║     ██╔══██╗██║   ██║████╗  ██║██╔════╝██║  ██║██╔══██╗██╔══██╗██╔══██╗
+  ██║     ███████║██║   ██║██╔██╗ ██║██║     ███████║██████╔╝███████║██║  ██║
+  ██║     ██╔══██║██║   ██║██║╚██╗██║██║     ██╔══██║██╔═══╝ ██╔══██║██║  ██║
+  ███████╗██║  ██║╚██████╔╝██║ ╚████║╚██████╗██║  ██║██║     ██║  ██║██████╔╝
+  ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚═════╝
 
 BANNER
   printf "${NC}"
-  printf "${DIM}  DevOps Workspace Installer  •  Ubuntu 20.04 / 22.04 / 24.04\n"
+  printf "${DIM}  Launchpad — DevOps Workspace Installer  •  Ubuntu 20.04 / 22.04 / 24.04\n"
   printf "  Log → %s${NC}\n\n" "$LOG_FILE"
 }
 
@@ -603,7 +603,7 @@ _select_whiptail() {
     items+=("$tool" "${TOOL_DESC[$tool]}" "ON")
   done
   local raw
-  raw=$(whiptail --title " DevOps Workspace Installer " \
+  raw=$(whiptail --title " Launchpad — DevOps Workspace Installer " \
     --checklist "\nSPACE = toggle  •  ENTER = confirm  •  TAB = switch buttons\n" \
     22 65 16 "${items[@]}" \
     3>&1 1>&2 2>&3) || { echo -e "\n${YELLOW}  Cancelled.${NC}"; exit 0; }
