@@ -58,11 +58,10 @@ declare -A TOOL_DESC=(
   [nmap]="Network Scanner & Port Discovery"
   [mtr]="Network diagnostic (ping + traceroute)"
   [tcpdump]="Packet Capture & Traffic Analysis"
-  [iperf3]="Network Bandwidth & Performance Testing"
   [dnsutils]="DNS tools: dig, nslookup, host"
   [netcat]="TCP/UDP Swiss Army Knife (nc)"
 )
-ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano duf nmap mtr tcpdump iperf3 dnsutils netcat)
+ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano duf nmap mtr tcpdump dnsutils netcat)
 
 # ── apt helper — suppresses needrestart and debconf prompts ──────────────────
 apt_install() {
@@ -679,26 +678,6 @@ uninstall_tcpdump() {
   log_ok "tcpdump removed"
 }
 
-install_iperf3() {
-  log_step "iperf3"
-  if command -v iperf3 &>/dev/null; then
-    log_warn "iperf3 already installed. Skipping."
-    SKIPPED+=("iperf3"); return
-  fi
-  quietly "Installing iperf3…" apt_install iperf3
-  if ! command -v iperf3 &>/dev/null; then
-    log_error "iperf3 binary not found after install — check $LOG_FILE"
-    return 1
-  fi
-  log_ok "$(iperf3 --version 2>/dev/null | head -1)"
-  INSTALLED+=("iperf3")
-}
-
-uninstall_iperf3() {
-  log_step "Removing iperf3"
-  sudo apt-get remove -y -qq iperf3 >>"$LOG_FILE" 2>&1 || true
-  log_ok "iperf3 removed"
-}
 
 install_dnsutils() {
   log_step "dnsutils"
@@ -876,7 +855,6 @@ _tool_version() {
     nmap)      nmap --version 2>/dev/null | head -1 | awk '{print $3}' ;;
     mtr)       mtr --version 2>/dev/null | awk '{print $2}' ;;
     tcpdump)   tcpdump --version 2>&1 | head -1 | awk '{print $3}' ;;
-    iperf3)    iperf3 --version 2>/dev/null | head -1 | awk '{print $2}' ;;
     dnsutils)  dig -v 2>&1 | awk '{print $2}' ;;
     netcat)    dpkg -s netcat-openbsd 2>/dev/null | grep 'Version:' | awk '{print $2}' ;;
   esac

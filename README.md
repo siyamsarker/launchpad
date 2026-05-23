@@ -107,7 +107,6 @@ launchpad --uninstall-self
 | `nmap` | Network scanner & port discovery | Ubuntu apt |
 | `mtr` | Network diagnostic — ping + traceroute combined | Ubuntu apt |
 | `tcpdump` | Packet capture & traffic analysis | Ubuntu apt |
-| `iperf3` | Network bandwidth & performance testing | Ubuntu apt |
 | `dnsutils` | DNS tools — `dig`, `nslookup`, `host` | Ubuntu apt |
 | `netcat` | TCP/UDP swiss army knife (`nc`) | Ubuntu apt |
 
@@ -176,18 +175,17 @@ launchpad --help            # show all flags
 **Tool status check** — `launchpad --status`:
 ```
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Tool Status  21 managed tools  •  2026-05-23 14:00
+  Tool Status  20 managed tools  •  2026-05-23 14:00
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   ✔  kubectl          v1.30.2
   ✔  docker           26.1.3
   ✖  nmap             not installed  →  run: launchpad
-  ✖  iperf3           not installed  →  run: launchpad
 
-  ✔  Installed: 19   ✖  Missing: 2   Total: 21
+  ✔  Installed: 19   ✖  Missing: 1   Total: 20
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Install 2 missing tool(s) now?  [y/N]
+  Install 1 missing tool(s) now?  [y/N]
 ```
 
 Answering `y` installs only the missing tools immediately — no checklist required.
