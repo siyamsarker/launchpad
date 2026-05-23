@@ -66,8 +66,7 @@ ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf ba
 
 # ── apt helper — suppresses needrestart and debconf prompts ──────────────────
 apt_install() {
-  sudo env DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a \
-    apt-get install -y -qq "$@"
+  sudo bash -c 'DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 apt-get install -y -qq "$@"' _ "$@"
 }
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -230,6 +229,10 @@ check_prerequisites() {
   log_info "Refreshing package index…"
   sudo apt-get update -qq >>"$LOG_FILE" 2>&1 \
     || log_warn "Package index refresh had errors — continuing (see $LOG_FILE)"
+
+  # Repair any packages left half-configured by a previously interrupted install
+  sudo bash -c 'DEBIAN_FRONTEND=noninteractive dpkg --configure -a' >>"$LOG_FILE" 2>&1 || true
+  sudo bash -c 'DEBIAN_FRONTEND=noninteractive apt-get install -f -y -qq' >>"$LOG_FILE" 2>&1 || true
 
   for dep in "${deps[@]}"; do
     if ! dpkg -s "$dep" &>/dev/null; then
@@ -683,6 +686,10 @@ install_iperf3() {
     SKIPPED+=("iperf3"); return
   fi
   quietly "Installing iperf3…" apt_install iperf3
+  if ! command -v iperf3 &>/dev/null; then
+    log_error "iperf3 binary not found after install — check $LOG_FILE"
+    return 1
+  fi
   log_ok "$(iperf3 --version 2>/dev/null | head -1)"
   INSTALLED+=("iperf3")
 }
