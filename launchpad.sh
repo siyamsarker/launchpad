@@ -736,10 +736,20 @@ _select_whiptail() {
   for tool in "${ALL_TOOLS[@]}"; do
     items+=("$tool" "${TOOL_DESC[$tool]}" "ON")
   done
+
+  local n=${#ALL_TOOLS[@]}
+  local term_h; term_h=$(tput lines 2>/dev/null || echo 40)
+  local term_w; term_w=$(tput cols  2>/dev/null || echo 80)
+  local dlg_h=$(( n + 9 ))
+  local dlg_w=$(( term_w < 78 ? term_w - 2 : 78 ))
+  (( dlg_h > term_h - 2 )) && dlg_h=$(( term_h - 2 ))
+  local list_h=$(( dlg_h - 9 ))
+  (( list_h < 5 )) && list_h=5
+
   local raw
   raw=$(whiptail --title " Launchpad — DevOps Workspace Installer " \
     --checklist "\nSPACE = toggle  •  ENTER = confirm  •  TAB = switch buttons\n" \
-    22 65 16 "${items[@]}" \
+    "$dlg_h" "$dlg_w" "$list_h" "${items[@]}" \
     3>&1 1>&2 2>&3) || { echo -e "\n${YELLOW}  Cancelled.${NC}"; exit 0; }
   IFS=' ' read -r -a SELECTED_TOOLS <<< "${raw//\"/}"
 }
