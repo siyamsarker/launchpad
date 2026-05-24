@@ -432,16 +432,18 @@ install_docker() {
 
 uninstall_docker() {
   log_step "Removing Docker"
-  log_warn "This will also delete /var/lib/docker (all images, containers, volumes)."
-  read -rp "  Type YES to confirm Docker data removal: " confirm
-  [[ "$confirm" != "YES" ]] && { log_warn "Skipping Docker removal."; return; }
-  sudo systemctl stop docker docker.socket 2>/dev/null || true
-  sudo apt-get remove -y -qq \
+  log_warn "Deleting /var/lib/docker (all images, containers, volumes)."
+  sudo systemctl stop docker docker.socket containerd 2>/dev/null || true
+  sudo apt-get purge -y -qq \
     docker-ce docker-ce-cli containerd.io \
-    docker-buildx-plugin docker-compose-plugin >>"$LOG_FILE" 2>&1 || true
+    docker-buildx-plugin docker-compose-plugin \
+    docker-ce-rootless-extras >>"$LOG_FILE" 2>&1 || true
+  sudo apt-get autoremove -y -qq >>"$LOG_FILE" 2>&1 || true
   sudo rm -rf /var/lib/docker /var/lib/containerd /etc/docker
-  sudo rm -f  /etc/apt/sources.list.d/docker.list \
-              /etc/apt/keyrings/docker.gpg
+  sudo rm -f /etc/apt/sources.list.d/docker.list \
+             /etc/apt/keyrings/docker.gpg \
+             /etc/apt/keyrings/docker.asc
+  sudo groupdel docker 2>/dev/null || true
   log_ok "Docker removed"
 }
 
