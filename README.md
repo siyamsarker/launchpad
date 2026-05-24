@@ -98,6 +98,7 @@ launchpad --uninstall-self
 | `fzf` | Fuzzy finder | Ubuntu apt |
 | `bat` | Syntax-highlighted `cat` replacement | Ubuntu apt |
 | `nano` | Terminal text editor | Ubuntu apt |
+| `vim` | Advanced terminal text editor | Ubuntu apt |
 | `duf` | Disk usage / free utility | GitHub `.deb` |
 
 ### Network & Troubleshooting
@@ -109,6 +110,16 @@ launchpad --uninstall-self
 | `tcpdump` | Packet capture & traffic analysis | Ubuntu apt |
 | `dnsutils` | DNS tools — `dig`, `nslookup`, `host` | Ubuntu apt |
 | `netcat` | TCP/UDP swiss army knife (`nc`) | Ubuntu apt |
+| `net-tools` | Classic network tools — `ifconfig`, `netstat`, `route`, `arp` | Ubuntu apt |
+
+### Database & Data Tools
+
+| Tool | What it does | Install source |
+|---|---|---|
+| `psql` | PostgreSQL interactive terminal (client only) | Ubuntu apt |
+| `atlas` | MongoDB Atlas CLI — manage clusters & projects | MongoDB apt repo |
+| `mongosh` | MongoDB Shell — interactive JS REPL for MongoDB | MongoDB apt repo |
+| `redis-cli` | Redis CLI — connect to and query Redis instances | Ubuntu apt |
 
 All tools are fetched from their official, vendor-provided sources. No third-party mirrors.
 
@@ -175,14 +186,14 @@ launchpad --help            # show all flags
 **Tool status check** — `launchpad --status`:
 ```
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Tool Status  20 managed tools  •  2026-05-23 14:00
+  Tool Status  26 managed tools  •  2026-05-23 14:00
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   ✔  kubectl          v1.30.2
   ✔  docker           26.1.3
   ✖  nmap             not installed  →  run: launchpad
 
-  ✔  Installed: 19   ✖  Missing: 1   Total: 20
+  ✔  Installed: 25   ✖  Missing: 1   Total: 26
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Install 1 missing tool(s) now?  [y/N]

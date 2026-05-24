@@ -5,8 +5,10 @@
 # Usage      : ./launchpad.sh [--uninstall | --install-self | --help]
 #
 # Tools managed:
-#   kubectl · eksctl · awscli · terraform · helm · docker
-#   k9s · jq · yq · fzf · bat · ansible · nano · duf
+#   kubectl · eksctl · awscli · terraform · helm · docker · k9s · ansible
+#   jq · yq · fzf · bat · nano · vim · duf
+#   nmap · mtr · tcpdump · dnsutils · netcat · net-tools
+#   psql · atlascli · mongosh · redis-cli
 # =============================================================================
 
 set -euo pipefail
@@ -53,6 +55,7 @@ declare -A TOOL_DESC=(
   [bat]="Syntax-highlighted cat replacement"
   [ansible]="Configuration Management"
   [nano]="Terminal Text Editor"
+  [vim]="Vi IMproved — Advanced Text Editor"
   [duf]="Disk Usage / Free Utility"
   # Network tools
   [nmap]="Network Scanner & Port Discovery"
@@ -60,8 +63,14 @@ declare -A TOOL_DESC=(
   [tcpdump]="Packet Capture & Traffic Analysis"
   [dnsutils]="DNS tools: dig, nslookup, host"
   [netcat]="TCP/UDP Swiss Army Knife (nc)"
+  [nettools]="net-tools: ifconfig, netstat, route, arp"
+  # Database tools
+  [psql]="PostgreSQL Client"
+  [atlascli]="MongoDB Atlas CLI"
+  [mongosh]="MongoDB Shell"
+  [rediscli]="Redis CLI"
 )
-ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano duf nmap mtr tcpdump dnsutils netcat)
+ALL_TOOLS=(osupdate kubectl eksctl awscli terraform helm docker k9s jq yq fzf bat ansible nano vim duf nmap mtr tcpdump dnsutils netcat nettools psql atlascli mongosh rediscli)
 
 # ── apt helper — suppresses needrestart and debconf prompts ──────────────────
 apt_install() {
@@ -596,6 +605,29 @@ uninstall_nano() {
 
 # ─────────────────────────────────────────────────────────────────────────────
 
+install_vim() {
+  log_step "vim"
+  if command -v vim &>/dev/null; then
+    log_warn "vim already installed. Skipping."
+    SKIPPED+=("vim"); return
+  fi
+  quietly "Installing vim…" apt_install vim
+  if ! command -v vim &>/dev/null; then
+    log_error "vim binary not found after install — check $LOG_FILE"
+    return 1
+  fi
+  log_ok "$(vim --version 2>/dev/null | head -1)"
+  INSTALLED+=("vim")
+}
+
+uninstall_vim() {
+  log_step "Removing vim"
+  sudo apt-get remove -y -qq vim >>"$LOG_FILE" 2>&1 || true
+  log_ok "vim removed"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 install_duf() {
   log_step "duf"
   if command -v duf &>/dev/null; then
@@ -713,6 +745,157 @@ uninstall_netcat() {
   log_ok "netcat removed"
 }
 
+install_nettools() {
+  log_step "net-tools"
+  if command -v ifconfig &>/dev/null; then
+    log_warn "net-tools already installed. Skipping."
+    SKIPPED+=("nettools"); return
+  fi
+  quietly "Installing net-tools…" apt_install net-tools
+  if ! command -v ifconfig &>/dev/null; then
+    log_error "net-tools binary not found after install — check $LOG_FILE"
+    return 1
+  fi
+  log_ok "net-tools (ifconfig, netstat, route, arp)"
+  INSTALLED+=("nettools")
+}
+
+uninstall_nettools() {
+  log_step "Removing net-tools"
+  sudo apt-get remove -y -qq net-tools >>"$LOG_FILE" 2>&1 || true
+  log_ok "net-tools removed"
+}
+
+# =============================================================================
+# DATABASE TOOLS
+# =============================================================================
+
+install_psql() {
+  log_step "psql"
+  if command -v psql &>/dev/null; then
+    log_warn "psql already installed — $(psql --version 2>/dev/null). Skipping."
+    SKIPPED+=("psql"); return
+  fi
+  quietly "Installing postgresql-client…" apt_install postgresql-client
+  if ! command -v psql &>/dev/null; then
+    log_error "psql binary not found after install — check $LOG_FILE"
+    return 1
+  fi
+  log_ok "$(psql --version)"
+  INSTALLED+=("psql")
+}
+
+uninstall_psql() {
+  log_step "Removing psql"
+  sudo apt-get remove -y -qq postgresql-client >>"$LOG_FILE" 2>&1 || true
+  log_ok "psql removed"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Atlas CLI and mongosh share a MongoDB apt repo keyring. Each install sets it
+# up idempotently; each uninstall only removes the repo files if neither binary
+# remains on the system after removal.
+# ─────────────────────────────────────────────────────────────────────────────
+
+install_atlascli() {
+  log_step "Atlas CLI"
+  if command -v atlas &>/dev/null; then
+    log_warn "Atlas CLI already installed. Skipping."
+    SKIPPED+=("atlascli"); return
+  fi
+  quietly "Adding MongoDB apt repo and installing Atlas CLI…" sudo bash -c '
+    codename=$(lsb_release -cs 2>/dev/null || echo "jammy")
+    mongo_ver="7.0"
+    [[ "$codename" == "noble" ]] && mongo_ver="8.0"
+    case "$codename" in focal|jammy|noble) ;; *) codename="jammy" ;; esac
+    curl -fsSL "https://pgp.mongodb.com/server-${mongo_ver}.asc" \
+      | gpg --dearmor -o /usr/share/keyrings/mongodb-server.gpg
+    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server.gpg ] \
+      https://repo.mongodb.org/apt/ubuntu ${codename}/mongodb-org/${mongo_ver} multiverse" \
+      > /etc/apt/sources.list.d/mongodb-org.list
+    apt-get update -qq
+    DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 apt-get install -y -qq mongodb-atlas
+  '
+  if ! command -v atlas &>/dev/null; then
+    log_error "atlas binary not found after install — check $LOG_FILE"
+    return 1
+  fi
+  log_ok "$(atlas --version 2>/dev/null | head -1)"
+  INSTALLED+=("atlascli")
+}
+
+uninstall_atlascli() {
+  log_step "Removing Atlas CLI"
+  sudo apt-get remove -y -qq mongodb-atlas >>"$LOG_FILE" 2>&1 || true
+  if ! command -v mongosh &>/dev/null; then
+    sudo rm -f /etc/apt/sources.list.d/mongodb-org.list \
+               /usr/share/keyrings/mongodb-server.gpg
+  fi
+  log_ok "Atlas CLI removed"
+}
+
+install_mongosh() {
+  log_step "mongosh"
+  if command -v mongosh &>/dev/null; then
+    log_warn "mongosh already installed. Skipping."
+    SKIPPED+=("mongosh"); return
+  fi
+  quietly "Adding MongoDB apt repo and installing mongosh…" sudo bash -c '
+    codename=$(lsb_release -cs 2>/dev/null || echo "jammy")
+    mongo_ver="7.0"
+    [[ "$codename" == "noble" ]] && mongo_ver="8.0"
+    case "$codename" in focal|jammy|noble) ;; *) codename="jammy" ;; esac
+    if [[ ! -f /usr/share/keyrings/mongodb-server.gpg ]]; then
+      curl -fsSL "https://pgp.mongodb.com/server-${mongo_ver}.asc" \
+        | gpg --dearmor -o /usr/share/keyrings/mongodb-server.gpg
+    fi
+    if [[ ! -f /etc/apt/sources.list.d/mongodb-org.list ]]; then
+      echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server.gpg ] \
+        https://repo.mongodb.org/apt/ubuntu ${codename}/mongodb-org/${mongo_ver} multiverse" \
+        > /etc/apt/sources.list.d/mongodb-org.list
+      apt-get update -qq
+    fi
+    DEBIAN_FRONTEND=noninteractive NEEDRESTART_SUSPEND=1 apt-get install -y -qq mongodb-mongosh
+  '
+  if ! command -v mongosh &>/dev/null; then
+    log_error "mongosh binary not found after install — check $LOG_FILE"
+    return 1
+  fi
+  log_ok "$(mongosh --version 2>/dev/null)"
+  INSTALLED+=("mongosh")
+}
+
+uninstall_mongosh() {
+  log_step "Removing mongosh"
+  sudo apt-get remove -y -qq mongodb-mongosh >>"$LOG_FILE" 2>&1 || true
+  if ! command -v atlas &>/dev/null; then
+    sudo rm -f /etc/apt/sources.list.d/mongodb-org.list \
+               /usr/share/keyrings/mongodb-server.gpg
+  fi
+  log_ok "mongosh removed"
+}
+
+install_rediscli() {
+  log_step "redis-cli"
+  if command -v redis-cli &>/dev/null; then
+    log_warn "redis-cli already installed. Skipping."
+    SKIPPED+=("rediscli"); return
+  fi
+  quietly "Installing redis-tools…" apt_install redis-tools
+  if ! command -v redis-cli &>/dev/null; then
+    log_error "redis-cli binary not found after install — check $LOG_FILE"
+    return 1
+  fi
+  log_ok "$(redis-cli --version 2>/dev/null)"
+  INSTALLED+=("rediscli")
+}
+
+uninstall_rediscli() {
+  log_step "Removing redis-cli"
+  sudo apt-get remove -y -qq redis-tools >>"$LOG_FILE" 2>&1 || true
+  log_ok "redis-cli removed"
+}
+
 # =============================================================================
 # INTERACTIVE TOOL SELECTOR
 # =============================================================================
@@ -825,12 +1008,15 @@ print_summary() {
 # Returns 0 if the tool binary/package is present on the system.
 _tool_installed() {
   case "$1" in
-    osupdate) return 0 ;;  # the OS itself is always present
-    awscli)   command -v aws &>/dev/null || [[ -f /usr/local/bin/aws ]] ;;
-    bat)      command -v bat &>/dev/null || command -v batcat &>/dev/null ;;
-    dnsutils) command -v dig &>/dev/null ;;
-    netcat)   command -v nc &>/dev/null || command -v ncat &>/dev/null ;;
-    *)        command -v "$1" &>/dev/null ;;
+    osupdate)  return 0 ;;  # the OS itself is always present
+    awscli)    command -v aws &>/dev/null || [[ -f /usr/local/bin/aws ]] ;;
+    bat)       command -v bat &>/dev/null || command -v batcat &>/dev/null ;;
+    dnsutils)  command -v dig &>/dev/null ;;
+    netcat)    command -v nc &>/dev/null || command -v ncat &>/dev/null ;;
+    nettools)  command -v ifconfig &>/dev/null ;;
+    atlascli)  command -v atlas &>/dev/null ;;
+    rediscli)  command -v redis-cli &>/dev/null ;;
+    *)         command -v "$1" &>/dev/null ;;
   esac
 }
 
@@ -857,6 +1043,12 @@ _tool_version() {
     tcpdump)   tcpdump --version 2>&1 | head -1 | awk '{print $3}' ;;
     dnsutils)  dig -v 2>&1 | awk '{print $2}' ;;
     netcat)    dpkg -s netcat-openbsd 2>/dev/null | grep 'Version:' | awk '{print $2}' ;;
+    vim)       vim --version 2>/dev/null | head -1 | awk '{print $5}' ;;
+    nettools)  dpkg -s net-tools 2>/dev/null | grep 'Version:' | awk '{print $2}' ;;
+    psql)      psql --version 2>/dev/null | awk '{print $3}' ;;
+    atlascli)  atlas --version 2>/dev/null | head -1 ;;
+    mongosh)   mongosh --version 2>/dev/null ;;
+    rediscli)  redis-cli --version 2>/dev/null | awk '{print $3}' ;;
   esac
 }
 
